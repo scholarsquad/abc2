@@ -5,33 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>P2P Chat for Google Sites</title>
     <meta http-equiv="X-Frame-Options" content="allow">
-    <script src="simplepeer.min.js"></script>
-    <style>
-        body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
-        #chat { border: 1px solid #ddd; height: 300px; overflow-y: scroll; padding: 10px; margin-bottom: 10px; }
-        #message { width: 70%; padding: 8px; }
-        button { padding: 8px 15px; }
-        .system-msg { color: #666; font-style: italic; }
-        .peer-msg { color: #0066cc; }
-        .your-msg { color: #009933; text-align: right; }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h2>P2P Chat</h2>
-    <div id="connection">
-        <p>Share this room ID to connect:</p>
-        <input type="text" id="roomId" readonly>
-        <button id="copyRoomId">Copy</button>
-        <p>Or connect to existing room:</p>
-        <input type="text" id="connectToRoom" placeholder="Paste room ID here">
-        <button id="connectBtn">Connect</button>
+    <div class="chat-container">
+        <!-- Add connection status div here -->
+        <div class="connection-status" id="connection-status">
+            🔴 Disconnected
+        </div>
+        
+        <div class="chat-header">
+            <h2>P2P Chat</h2>
+            <div class="user-info">
+                <input type="text" id="roomId" readonly>
+                <button id="copyRoomId">Copy Room ID</button>
+            </div>
+        </div>
+        
+        <div class="chat-messages" id="chat"></div>
+        
+        <div class="chat-input">
+            <input type="text" id="messageInput" placeholder="Type your message..." disabled>
+            <button id="sendBtn" disabled>Send</button>
+        </div>
     </div>
-    <div id="chat"></div>
-    <input type="text" id="message" placeholder="Type your message...">
-    <button id="sendBtn" disabled>Send</button>
-
-    <!-- Load SimplePeer FIRST -->
     
+    <!-- Load scripts at bottom -->
+    <script src="simplepeer.min.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
