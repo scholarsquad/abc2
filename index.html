@@ -3,43 +3,42 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>P2P Chat with Firebase Signaling</title>
+  <title>P2P Chat with Custom or Auto Room ID</title>
   <link rel="stylesheet" href="style.css" />
 
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-  <script>
-    // Replace with your Firebase config:
-    const firebaseConfig = {
-    apiKey: "AIzaSyA3goqO3rp5_uXJKV3RNFVkso3W7C-rYTk",
-    authDomain: "p2pchat-88e5e.firebaseapp.com",
-    databaseURL: "https://p2pchat-88e5e-default-rtdb.firebaseio.com",
-    projectId: "p2pchat-88e5e",
-    storageBucket: "p2pchat-88e5e.firebasestorage.app",
-    messagingSenderId: "77422680773",
-    appId: "1:77422680773:web:f2437b0a354cc2316f6eac"
-  };
-    firebase.initializeApp(firebaseConfig);
-  </script>
 </head>
 <body>
   <div class="chat-container">
-    <h2>P2P Chat</h2>
+    <div id="connection-status" class="connection-status">🔴 Disconnected</div>
 
-    <div class="room-section">
-      <label for="roomId">Room ID:</label>
-      <input type="text" id="roomId" placeholder="Enter Room ID (or leave blank)" />
-      <button id="startHostBtn">Start Hosting</button>
+    <div class="chat-header">
+      <h2>P2P Chat</h2>
+      <div class="user-info">
+        <input
+          type="text"
+          id="roomId"
+          placeholder="Enter Room ID (or leave blank)"
+          autocomplete="off"
+        />
+        <button id="copyRoomId">Copy Room ID</button>
+      </div>
     </div>
 
-    <div class="connect-section">
-      <label for="connectToRoom">Connect to Room ID:</label>
-      <input type="text" id="connectToRoom" placeholder="Paste Room ID to connect" />
-      <button id="connectBtn">Connect</button>
+    <div class="connection-section">
+      <h3>Connect to another user</h3>
+      <div class="connection-input">
+        <input
+          type="text"
+          id="connectToRoom"
+          placeholder="Paste their Room ID here"
+          autocomplete="off"
+        />
+        <button id="connectBtn">Connect</button>
+      </div>
     </div>
-
-    <div id="connection-status" class="status disconnected">🔴 Disconnected</div>
 
     <div id="chat" class="chat-messages"></div>
 
@@ -49,9 +48,7 @@
     </div>
   </div>
 
-  <!-- Load SimplePeer from local file -->
   <script src="simplepeer.min.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
-
