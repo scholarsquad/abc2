@@ -123,3 +123,4 @@ sendBtn.onclick = () => {
 window.onload = () => {
   updateConnectionStatus(false);
 };
+
