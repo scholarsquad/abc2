@@ -1,4 +1,4 @@
-// Configuration with fallback STUN servers
+// Configuration with multiple STUN servers
 const config = {
     iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
@@ -16,7 +16,7 @@ const copyRoomIdBtn = document.getElementById('copyRoomId');
 const connectToRoomInput = document.getElementById('connectToRoom');
 const connectBtn = document.getElementById('connectBtn');
 
-// Generate a random room ID
+// Generate random room ID
 let roomId = generateRoomId();
 roomIdInput.value = roomId;
 
@@ -25,33 +25,32 @@ let isInitiator = false;
 let retryCount = 0;
 const MAX_RETRIES = 3;
 
-// Copy room ID button
+// Copy room ID
 copyRoomIdBtn.addEventListener('click', () => {
     roomIdInput.select();
     document.execCommand('copy');
     addSystemMessage('Room ID copied to clipboard!');
 });
 
-// Connect button
+// Connect to room
 connectBtn.addEventListener('click', () => {
     const targetRoomId = connectToRoomInput.value.trim();
     if (targetRoomId) {
         roomId = targetRoomId;
         isInitiator = true;
         setupPeerConnection();
-        addSystemMessage(`Attempting to connect to room: ${roomId}`);
+        addSystemMessage(`Connecting to room: ${roomId}...`);
     }
 });
 
-// Send button
+// Message sending
 sendBtn.addEventListener('click', sendMessage);
 messageInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') sendMessage();
 });
 
-// Set up the peer connection with improved error handling
+// Peer connection setup
 function setupPeerConnection() {
-    // Clear previous peer if exists
     if (peer) peer.destroy();
     
     peer = new SimplePeer({
@@ -60,18 +59,17 @@ function setupPeerConnection() {
         trickle: false
     });
 
-    // Debugging logs
     peer.on('signal', (data) => {
-        console.log('Signal Data:', data);
+        console.log('Signal:', data);
         localStorage.setItem(`signal_${roomId}`, JSON.stringify(data));
         checkForSignals();
     });
 
     peer.on('connect', () => {
-        console.log('Peer connected!');
+        console.log('WebRTC connected!');
         sendBtn.disabled = false;
-        addSystemMessage('Peer connected! You can now chat.');
-        retryCount = 0; // Reset on success
+        addSystemMessage('Connected! Start chatting.');
+        retryCount = 0;
     });
 
     peer.on('data', (data) => {
@@ -84,62 +82,51 @@ function setupPeerConnection() {
         attemptReconnect();
     });
 
-    peer.on('close', () => {
-        addSystemMessage('Peer disconnected');
-        sendBtn.disabled = true;
-    });
-
-    // Fallback: Enable send button after timeout
+    // Fallback: Enable send after timeout
     setTimeout(() => {
         if (sendBtn.disabled && retryCount < MAX_RETRIES) {
-            addSystemMessage('Warning: Connection unstable. Retrying...');
             attemptReconnect();
         }
     }, 10000);
 }
 
-// Improved signaling with retries
+// Signal checking
 function checkForSignals() {
     const checkInterval = setInterval(() => {
         const signalData = localStorage.getItem(`signal_${roomId}`);
         if (signalData) {
             try {
                 const signal = JSON.parse(signalData);
-                console.log('Received signal:', signal);
                 if (signal.type !== (peer._lastSignalType || '')) {
                     peer.signal(signal);
                     localStorage.removeItem(`signal_${roomId}`);
                     if (isInitiator) clearInterval(checkInterval);
                 }
             } catch (e) {
-                console.error('Signal parse error:', e);
+                console.error('Signal error:', e);
             }
         }
     }, 1000);
 }
 
-// Automatic reconnection
+// Reconnection logic
 function attemptReconnect() {
     if (retryCount >= MAX_RETRIES) {
-        addSystemMessage('Max retries reached. Please refresh the page.');
+        addSystemMessage('Failed to connect. Refresh and try again.');
         return;
     }
-    
     retryCount++;
-    console.log(`Reconnection attempt ${retryCount}/${MAX_RETRIES}`);
-    addSystemMessage(`Reconnecting... (${retryCount}/${MAX_RETRIES})`);
-    setTimeout(setupPeerConnection, 2000 * retryCount); // Exponential backoff
+    addSystemMessage(`Retrying connection (${retryCount}/${MAX_RETRIES})...`);
+    setTimeout(setupPeerConnection, 2000 * retryCount);
 }
 
-// Send message function
+// Message handling
 function sendMessage() {
     const message = messageInput.value.trim();
     if (message && peer && peer.connected) {
         peer.send(message);
         addMessage(message, 'you');
         messageInput.value = '';
-    } else if (!peer.connected) {
-        addSystemMessage('Not connected yet. Please wait...');
     }
 }
 
@@ -164,7 +151,7 @@ function generateRoomId() {
     return Math.random().toString(36).substring(2, 8);
 }
 
-// Auto-start if URL has a room parameter
+// Auto-connect if URL has room ID
 window.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
     const targetRoom = urlParams.get('room');
@@ -173,6 +160,6 @@ window.addEventListener('DOMContentLoaded', () => {
         connectToRoomInput.value = targetRoom;
         connectBtn.click();
     } else {
-        addSystemMessage(`Your room ID is: ${roomId}. Share it to connect.`);
+        addSystemMessage(`Your room ID: ${roomId}. Share it to connect.`);
     }
 });
