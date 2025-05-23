@@ -1,7 +1,9 @@
-// Configuration
+// Configuration with fallback STUN servers
 const config = {
     iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' }, // Free public STUN server
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' }
     ]
 };
 
@@ -20,6 +22,8 @@ roomIdInput.value = roomId;
 
 let peer;
 let isInitiator = false;
+let retryCount = 0;
+const MAX_RETRIES = 3;
 
 // Copy room ID button
 copyRoomIdBtn.addEventListener('click', () => {
@@ -45,27 +49,29 @@ messageInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') sendMessage();
 });
 
-// Set up the peer connection
+// Set up the peer connection with improved error handling
 function setupPeerConnection() {
+    // Clear previous peer if exists
+    if (peer) peer.destroy();
+    
     peer = new SimplePeer({
         initiator: isInitiator,
         config: config,
         trickle: false
     });
 
-    // When we get a signal, we need to "send" it to the other peer
-    // In a real app, this would go through a signaling server
-    // Here we'll simulate it by storing in localStorage
+    // Debugging logs
     peer.on('signal', (data) => {
+        console.log('Signal Data:', data);
         localStorage.setItem(`signal_${roomId}`, JSON.stringify(data));
-        
-        // Check for signals from the other peer
         checkForSignals();
     });
 
     peer.on('connect', () => {
-        addSystemMessage('Peer connected! You can now chat.');
+        console.log('Peer connected!');
         sendBtn.disabled = false;
+        addSystemMessage('Peer connected! You can now chat.');
+        retryCount = 0; // Reset on success
     });
 
     peer.on('data', (data) => {
@@ -75,47 +81,69 @@ function setupPeerConnection() {
     peer.on('error', (err) => {
         console.error('Peer error:', err);
         addSystemMessage(`Error: ${err.message}`);
+        attemptReconnect();
     });
 
     peer.on('close', () => {
         addSystemMessage('Peer disconnected');
         sendBtn.disabled = true;
     });
+
+    // Fallback: Enable send button after timeout
+    setTimeout(() => {
+        if (sendBtn.disabled && retryCount < MAX_RETRIES) {
+            addSystemMessage('Warning: Connection unstable. Retrying...');
+            attemptReconnect();
+        }
+    }, 10000);
 }
 
-// Check for signals from the other peer
+// Improved signaling with retries
 function checkForSignals() {
     const checkInterval = setInterval(() => {
         const signalData = localStorage.getItem(`signal_${roomId}`);
         if (signalData) {
             try {
                 const signal = JSON.parse(signalData);
-                if (signal.type !== peer._lastSignalType) {
+                console.log('Received signal:', signal);
+                if (signal.type !== (peer._lastSignalType || '')) {
                     peer.signal(signal);
                     localStorage.removeItem(`signal_${roomId}`);
-                    
-                    if (isInitiator) {
-                        clearInterval(checkInterval);
-                    }
+                    if (isInitiator) clearInterval(checkInterval);
                 }
             } catch (e) {
-                console.error('Error parsing signal:', e);
+                console.error('Signal parse error:', e);
             }
         }
     }, 1000);
 }
 
-// Send a message
+// Automatic reconnection
+function attemptReconnect() {
+    if (retryCount >= MAX_RETRIES) {
+        addSystemMessage('Max retries reached. Please refresh the page.');
+        return;
+    }
+    
+    retryCount++;
+    console.log(`Reconnection attempt ${retryCount}/${MAX_RETRIES}`);
+    addSystemMessage(`Reconnecting... (${retryCount}/${MAX_RETRIES})`);
+    setTimeout(setupPeerConnection, 2000 * retryCount); // Exponential backoff
+}
+
+// Send message function
 function sendMessage() {
     const message = messageInput.value.trim();
     if (message && peer && peer.connected) {
         peer.send(message);
         addMessage(message, 'you');
         messageInput.value = '';
+    } else if (!peer.connected) {
+        addSystemMessage('Not connected yet. Please wait...');
     }
 }
 
-// Add a message to the chat
+// UI helpers
 function addMessage(text, sender) {
     const msgDiv = document.createElement('div');
     msgDiv.classList.add(sender === 'you' ? 'your-msg' : 'peer-msg');
@@ -124,7 +152,6 @@ function addMessage(text, sender) {
     chatDiv.scrollTop = chatDiv.scrollHeight;
 }
 
-// Add a system message
 function addSystemMessage(text) {
     const sysDiv = document.createElement('div');
     sysDiv.classList.add('system-msg');
@@ -133,7 +160,6 @@ function addSystemMessage(text) {
     chatDiv.scrollTop = chatDiv.scrollHeight;
 }
 
-// Generate a random room ID
 function generateRoomId() {
     return Math.random().toString(36).substring(2, 8);
 }
@@ -149,14 +175,4 @@ window.addEventListener('DOMContentLoaded', () => {
     } else {
         addSystemMessage(`Your room ID is: ${roomId}. Share it to connect.`);
     }
-});
-
-// Add to the `setupPeerConnection()` function:
-peer.on('signal', (data) => {
-    console.log("SIGNAL DATA:", data); // Check if signals are generated
-    localStorage.setItem(`signal_${roomId}`, JSON.stringify(data));
-});
-
-peer.on('error', (err) => {
-    console.error("PEER ERROR:", err); // Check for errors
 });
