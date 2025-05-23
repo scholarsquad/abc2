@@ -1,4 +1,4 @@
-// Configuration with multiple STUN servers
+// ================ CONFIGURATION ================
 const config = {
     iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
@@ -7,159 +7,226 @@ const config = {
     ]
 };
 
-// DOM elements
-const chatDiv = document.getElementById('chat');
-const messageInput = document.getElementById('message');
-const sendBtn = document.getElementById('sendBtn');
-const roomIdInput = document.getElementById('roomId');
-const copyRoomIdBtn = document.getElementById('copyRoomId');
-const connectToRoomInput = document.getElementById('connectToRoom');
-const connectBtn = document.getElementById('connectBtn');
+// ================ STATE MANAGEMENT ================
+const appState = {
+    peer: null,
+    isInitiator: false,
+    retryCount: 0,
+    MAX_RETRIES: 3,
+    roomId: generateRoomId(),
+    connected: false
+};
 
-// Generate random room ID
-let roomId = generateRoomId();
-roomIdInput.value = roomId;
+// ================ DOM ELEMENTS ================
+const elements = {
+    chat: document.getElementById('chat'),
+    messageInput: document.getElementById('message'),
+    sendBtn: document.getElementById('sendBtn'),
+    roomId: document.getElementById('roomId'),
+    copyRoomIdBtn: document.getElementById('copyRoomId'),
+    connectToRoom: document.getElementById('connectToRoom'),
+    connectBtn: document.getElementById('connectBtn'),
+    connectionStatus: document.getElementById('connection-status') // Add this to your HTML
+};
 
-let peer;
-let isInitiator = false;
-let retryCount = 0;
-const MAX_RETRIES = 3;
+// ================ CORE FUNCTIONS ================
+function initializeApp() {
+    // Set up initial UI
+    elements.roomId.value = appState.roomId;
+    addSystemMessage(`Your room ID: ${appState.roomId}. Share it to connect.`);
 
-// Copy room ID
-copyRoomIdBtn.addEventListener('click', () => {
-    roomIdInput.select();
-    document.execCommand('copy');
-    addSystemMessage('Room ID copied to clipboard!');
-});
+    // Event listeners
+    elements.copyRoomIdBtn.addEventListener('click', copyRoomId);
+    elements.connectBtn.addEventListener('click', handleConnect);
+    elements.sendBtn.addEventListener('click', sendMessage);
+    elements.messageInput.addEventListener('keypress', handleKeyPress);
 
-// Connect to room
-connectBtn.addEventListener('click', () => {
-    const targetRoomId = connectToRoomInput.value.trim();
-    if (targetRoomId) {
-        roomId = targetRoomId;
-        isInitiator = true;
-        setupPeerConnection();
-        addSystemMessage(`Connecting to room: ${roomId}...`);
+    // Auto-connect if URL has room parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const targetRoom = urlParams.get('room');
+    if (targetRoom) {
+        elements.connectToRoom.value = targetRoom;
+        handleConnect();
     }
-});
+}
 
-// Message sending
-sendBtn.addEventListener('click', sendMessage);
-messageInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') sendMessage();
-});
+function handleConnect() {
+    const targetRoomId = elements.connectToRoom.value.trim();
+    if (!targetRoomId) return;
 
-// Peer connection setup
+    if (typeof SimplePeer === 'undefined') {
+        addSystemMessage('Error: Chat system not loaded. Please refresh the page.');
+        console.error('SimplePeer not defined');
+        return;
+    }
+
+    appState.roomId = targetRoomId;
+    appState.isInitiator = true;
+    setupPeerConnection();
+    addSystemMessage(`Connecting to room: ${targetRoomId}...`);
+}
+
 function setupPeerConnection() {
-    if (peer) peer.destroy();
-    
-    peer = new SimplePeer({
-        initiator: isInitiator,
+    // Clean up previous connection if exists
+    if (appState.peer) {
+        appState.peer.destroy();
+    }
+
+    appState.peer = new SimplePeer({
+        initiator: appState.isInitiator,
         config: config,
         trickle: false
     });
 
-    peer.on('signal', (data) => {
-        console.log('Signal:', data);
-        localStorage.setItem(`signal_${roomId}`, JSON.stringify(data));
-        checkForSignals();
-    });
+    // Event handlers
+    appState.peer.on('signal', handleSignal);
+    appState.peer.on('connect', handlePeerConnect);
+    appState.peer.on('data', handleData);
+    appState.peer.on('error', handlePeerError);
+    appState.peer.on('close', handlePeerClose);
 
-    peer.on('connect', () => {
-        console.log('WebRTC connected!');
-        sendBtn.disabled = false;
-        addSystemMessage('Connected! Start chatting.');
-        retryCount = 0;
-    });
-
-    peer.on('data', (data) => {
-        addMessage(data.toString(), 'peer');
-    });
-
-    peer.on('error', (err) => {
-        console.error('Peer error:', err);
-        addSystemMessage(`Error: ${err.message}`);
-        attemptReconnect();
-    });
-
-    // Fallback: Enable send after timeout
+    // Fallback timeout
     setTimeout(() => {
-        if (sendBtn.disabled && retryCount < MAX_RETRIES) {
+        if (!appState.connected && appState.retryCount < appState.MAX_RETRIES) {
             attemptReconnect();
         }
     }, 10000);
 }
 
-// Signal checking
+// ================ PEER EVENT HANDLERS ================
+function handleSignal(data) {
+    console.log('Signal data:', data);
+    localStorage.setItem(`signal_${appState.roomId}`, JSON.stringify(data));
+    checkForSignals();
+}
+
+function handlePeerConnect() {
+    console.log('WebRTC connection established!');
+    appState.connected = true;
+    appState.retryCount = 0;
+    elements.sendBtn.disabled = false;
+    addSystemMessage('Connection successful! You can now chat.');
+    updateConnectionStatus(true);
+}
+
+function handleData(data) {
+    addMessage(data.toString(), 'peer');
+}
+
+function handlePeerError(err) {
+    console.error('Peer error:', err);
+    addSystemMessage(`Connection error: ${err.message}`);
+    attemptReconnect();
+}
+
+function handlePeerClose() {
+    console.log('Peer disconnected');
+    appState.connected = false;
+    elements.sendBtn.disabled = true;
+    addSystemMessage('Peer disconnected');
+    updateConnectionStatus(false);
+}
+
+// ================ CONNECTION MANAGEMENT ================
 function checkForSignals() {
     const checkInterval = setInterval(() => {
-        const signalData = localStorage.getItem(`signal_${roomId}`);
+        const signalData = localStorage.getItem(`signal_${appState.roomId}`);
         if (signalData) {
             try {
                 const signal = JSON.parse(signalData);
-                if (signal.type !== (peer._lastSignalType || '')) {
-                    peer.signal(signal);
-                    localStorage.removeItem(`signal_${roomId}`);
-                    if (isInitiator) clearInterval(checkInterval);
+                if (signal.type !== (appState.peer._lastSignalType || '')) {
+                    appState.peer.signal(signal);
+                    localStorage.removeItem(`signal_${appState.roomId}`);
+                    if (appState.isInitiator) clearInterval(checkInterval);
                 }
             } catch (e) {
-                console.error('Signal error:', e);
+                console.error('Error parsing signal:', e);
             }
         }
     }, 1000);
 }
 
-// Reconnection logic
 function attemptReconnect() {
-    if (retryCount >= MAX_RETRIES) {
-        addSystemMessage('Failed to connect. Refresh and try again.');
+    if (appState.retryCount >= appState.MAX_RETRIES) {
+        addSystemMessage('Maximum connection attempts reached. Please refresh.');
         return;
     }
-    retryCount++;
-    addSystemMessage(`Retrying connection (${retryCount}/${MAX_RETRIES})...`);
-    setTimeout(setupPeerConnection, 2000 * retryCount);
+
+    appState.retryCount++;
+    console.log(`Reconnection attempt ${appState.retryCount}/${appState.MAX_RETRIES}`);
+    addSystemMessage(`Reconnecting... (${appState.retryCount}/${appState.MAX_RETRIES})`);
+    setTimeout(setupPeerConnection, 2000 * appState.retryCount);
 }
 
-// Message handling
+// ================ MESSAGE FUNCTIONS ================
 function sendMessage() {
-    const message = messageInput.value.trim();
-    if (message && peer && peer.connected) {
-        peer.send(message);
+    const message = elements.messageInput.value.trim();
+    if (!message || !appState.peer || !appState.connected) return;
+
+    try {
+        appState.peer.send(message);
         addMessage(message, 'you');
-        messageInput.value = '';
+        elements.messageInput.value = '';
+    } catch (err) {
+        console.error('Send error:', err);
+        addSystemMessage('Failed to send message. Try again.');
     }
 }
 
-// UI helpers
+function handleKeyPress(e) {
+    if (e.key === 'Enter') sendMessage();
+}
+
+// ================ UI FUNCTIONS ================
 function addMessage(text, sender) {
     const msgDiv = document.createElement('div');
     msgDiv.classList.add(sender === 'you' ? 'your-msg' : 'peer-msg');
     msgDiv.textContent = text;
-    chatDiv.appendChild(msgDiv);
-    chatDiv.scrollTop = chatDiv.scrollHeight;
+    elements.chat.appendChild(msgDiv);
+    elements.chat.scrollTop = elements.chat.scrollHeight;
 }
 
 function addSystemMessage(text) {
     const sysDiv = document.createElement('div');
     sysDiv.classList.add('system-msg');
     sysDiv.textContent = text;
-    chatDiv.appendChild(sysDiv);
-    chatDiv.scrollTop = chatDiv.scrollHeight;
+    elements.chat.appendChild(sysDiv);
+    elements.chat.scrollTop = elements.chat.scrollHeight;
+}
+
+function updateConnectionStatus(isConnected) {
+    if (elements.connectionStatus) {
+        elements.connectionStatus.textContent = isConnected ? '🟢 Connected' : '🔴 Disconnected';
+        elements.connectionStatus.style.color = isConnected ? 'green' : 'red';
+    }
+}
+
+function copyRoomId() {
+    elements.roomId.select();
+    document.execCommand('copy');
+    addSystemMessage('Room ID copied to clipboard!');
 }
 
 function generateRoomId() {
     return Math.random().toString(36).substring(2, 8);
 }
 
-// Auto-connect if URL has room ID
-window.addEventListener('DOMContentLoaded', () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const targetRoom = urlParams.get('room');
-    
-    if (targetRoom) {
-        connectToRoomInput.value = targetRoom;
-        connectBtn.click();
+// ================ INITIALIZATION ================
+function checkDependencies() {
+    if (typeof SimplePeer === 'undefined') {
+        console.log('SimplePeer not found, loading from CDN...');
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/simple-peer/9.11.1/simple-peer.min.js';
+        script.onload = initializeApp;
+        script.onerror = () => {
+            addSystemMessage('Failed to load chat system. Please try again later.');
+            console.error('Failed to load SimplePeer');
+        };
+        document.head.appendChild(script);
     } else {
-        addSystemMessage(`Your room ID: ${roomId}. Share it to connect.`);
+        initializeApp();
     }
-});
+}
+
+// Start the app when DOM is ready
+document.addEventListener('DOMContentLoaded', checkDependencies);
