@@ -9,7 +9,7 @@
 </head>
 <body>
     <div class="chat-container">
-        <!-- Add connection status div here -->
+        <!-- Connection Status -->
         <div class="connection-status" id="connection-status">
             🔴 Disconnected
         </div>
@@ -22,6 +22,15 @@
             </div>
         </div>
         
+        <!-- ADD THIS CONNECTION SECTION -->
+        <div class="connection-section">
+            <h3>Connect to another user</h3>
+            <div class="connection-input">
+                <input type="text" id="connectToRoom" placeholder="Paste their Room ID here">
+                <button id="connectBtn">Connect</button>
+            </div>
+        </div>
+        
         <div class="chat-messages" id="chat"></div>
         
         <div class="chat-input">
@@ -30,7 +39,6 @@
         </div>
     </div>
     
-    <!-- Load scripts at bottom -->
     <script src="simplepeer.min.js"></script>
     <script src="script.js"></script>
 </body>
