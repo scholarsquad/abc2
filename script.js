@@ -9,25 +9,38 @@ const connectionStatus = document.getElementById('connection-status');
 
 let peer;
 let database = firebase.database();
+let myRoomId;
 
-// If user leaves it blank, auto-generate a Room ID
-let myRoomId = roomIdEl.value.trim();
-if (!myRoomId) {
-    myRoomId = Math.random().toString(36).substring(2, 10);
-    roomIdEl.value = myRoomId;
+function startHosting() {
+    myRoomId = roomIdEl.value.trim();
+    if (!myRoomId) {
+        myRoomId = Math.random().toString(36).substring(2, 10);
+        roomIdEl.value = myRoomId;
+    }
+
+    setupPeer(true);
+
+    const myConnRef = database.ref("rooms/" + myRoomId);
+    peer.on("signal", data => {
+        myConnRef.set({ offer: data });
+    });
+
+    myConnRef.on("value", snapshot => {
+        const data = snapshot.val();
+        if (data && data.answer && !peer.destroyed) {
+            peer.signal(data.answer);
+        }
+    });
+
+    appendMsg("System", `Hosting Room ID: ${myRoomId}`);
 }
 
-
-copyBtn.onclick = () => {
-    navigator.clipboard.writeText(myRoomId);
-    alert("Room ID copied!");
-};
-
-connectBtn.onclick = async () => {
+connectBtn.onclick = () => {
     const targetRoom = connectToEl.value.trim();
-    if (!targetRoom) return alert("Enter a Room ID");
+    if (!targetRoom) return alert("Enter a Room ID to connect");
 
     setupPeer(false);
+
     const connRef = database.ref("rooms/" + targetRoom);
     connRef.on("value", snapshot => {
         const data = snapshot.val();
@@ -36,26 +49,18 @@ connectBtn.onclick = async () => {
         }
     });
 
-    // Store answer in their room
     peer.on("signal", data => {
         connRef.update({ answer: data });
     });
+
+    appendMsg("System", `Connecting to Room ID: ${targetRoom}`);
 };
 
-// Wait for a connection offer
-const myConnRef = database.ref("rooms/" + myRoomId);
-setupPeer(true);
-peer.on("signal", data => {
-    myConnRef.set({ offer: data });
-});
-myConnRef.on("value", snapshot => {
-    const data = snapshot.val();
-    if (data && data.answer && !peer.destroyed) {
-        peer.signal(data.answer);
-    }
-});
+copyBtn.onclick = () => {
+    navigator.clipboard.writeText(roomIdEl.value);
+    alert("Room ID copied!");
+};
 
-// Setup peer
 function setupPeer(initiator) {
     peer = new SimplePeer({ initiator, trickle: false });
 
@@ -73,6 +78,7 @@ function setupPeer(initiator) {
 
     peer.on("error", err => {
         console.error("Peer error:", err);
+        appendMsg("System", "Connection error.");
     });
 }
 
@@ -92,3 +98,7 @@ function appendMsg(sender, text, className = "system-msg") {
     chatEl.appendChild(div);
     chatEl.scrollTop = chatEl.scrollHeight;
 }
+
+window.onload = () => {
+    startHosting(); // Host when page loads
+};
