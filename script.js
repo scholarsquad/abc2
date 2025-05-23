@@ -10,9 +10,13 @@ const connectionStatus = document.getElementById('connection-status');
 let peer;
 let database = firebase.database();
 
-// Generate a unique room ID for the user
-const myRoomId = Math.random().toString(36).substring(2, 10);
-roomIdEl.value = myRoomId;
+// If user leaves it blank, auto-generate a Room ID
+let myRoomId = roomIdEl.value.trim();
+if (!myRoomId) {
+    myRoomId = Math.random().toString(36).substring(2, 10);
+    roomIdEl.value = myRoomId;
+}
+
 
 copyBtn.onclick = () => {
     navigator.clipboard.writeText(myRoomId);
