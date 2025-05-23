@@ -1,8 +1,10 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta http-equiv="X-Frame-Options" content="allow">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>P2P Chat for Google Sites</title>
+    <meta http-equiv="X-Frame-Options" content="allow">
     <style>
         body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
         #chat { border: 1px solid #ddd; height: 300px; overflow-y: scroll; padding: 10px; margin-bottom: 10px; }
@@ -13,8 +15,7 @@
         .your-msg { color: #009933; text-align: right; }
     </style>
 </head>
-<body
-    
+<body>
     <h2>P2P Chat</h2>
     <div id="connection">
         <p>Share this room ID to connect:</p>
@@ -28,6 +29,7 @@
     <input type="text" id="message" placeholder="Type your message...">
     <button id="sendBtn" disabled>Send</button>
 
+    <!-- Load SimplePeer FIRST -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/simple-peer/9.11.1/simple-peer.min.js"></script>
     <script src="script.js"></script>
 </body>
