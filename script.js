@@ -150,3 +150,13 @@ window.addEventListener('DOMContentLoaded', () => {
         addSystemMessage(`Your room ID is: ${roomId}. Share it to connect.`);
     }
 });
+
+// Add to the `setupPeerConnection()` function:
+peer.on('signal', (data) => {
+    console.log("SIGNAL DATA:", data); // Check if signals are generated
+    localStorage.setItem(`signal_${roomId}`, JSON.stringify(data));
+});
+
+peer.on('error', (err) => {
+    console.error("PEER ERROR:", err); // Check for errors
+});
