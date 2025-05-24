@@ -6,6 +6,7 @@
   <title>P2P Chat with Firebase Signaling</title>
   <link rel="stylesheet" href="style.css" />
 
+  <!-- Firebase scripts -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 </head>
@@ -14,8 +15,11 @@
 
     <div class="instructions">
       <h2>How to use</h2>
-      <p>Type a room ID and click "Host Room" to create a room or "Connect" to join one.</p>
-      <p>Share the room ID with others to chat P2P.</p>
+      <p>By default, it'll load with and begin hosting with RoomOne as the ID.</p>
+      <p>To create a custom room id, type it in and click Host Room.</p>
+      <p>Share your room ID and have the other person enter it in the Connect field, then click Connect.</p>
+      <h3>Try these rooms:</h3>
+      <p>RoomOne<br>RoomTwo<br>RoomThree</p>
     </div>
 
     <div class="chat-container">
@@ -27,14 +31,19 @@
       </div>
 
       <div style="margin-top: 10px;">
-        <label>Room ID:</label><br />
-        <input type="text" id="roomIdInput" placeholder="Enter Room ID (or leave blank for random)" />
+        <label>Host a Room:</label><br />
+        <input type="text" id="roomId" placeholder="Enter Room ID (or leave blank)" />
         <button id="hostBtn">Host Room</button>
-        <button id="connectBtn">Connect</button>
-        <button id="copyRoomId">Copy Room ID</button>
+        <button id="copyRoomId">Copy RoomID</button>
       </div>
 
-      <div id="chat" style="margin-top:20px; height: 300px; overflow-y: auto; border: 1px solid #ccc; padding: 5px;"></div>
+      <div style="margin-top: 20px;">
+        <label>Connect to another Room ID:</label><br />
+        <input type="text" id="connectToRoom" placeholder="Paste their Room ID here" />
+        <button id="connectBtn">Connect</button>
+      </div>
+
+      <div id="chat"></div>
 
       <div style="margin-top:10px;">
         <input type="text" id="messageInput" placeholder="Type your message..." disabled />
@@ -45,6 +54,7 @@
   </div>
 
   <script>
+
     const firebaseConfig = {
       apiKey: "AIzaSyA3goqO3rp5_uXJKV3RNFVkso3W7C-rYTk",
       authDomain: "p2pchat-88e5e.firebaseapp.com",
