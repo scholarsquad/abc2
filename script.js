@@ -1,6 +1,5 @@
 const db = firebase.database();
 
-const joinBtn = document.getElementById('connectBtn');
 const nicknameInput = document.getElementById('nicknameInput');
 const roomIdInput = document.getElementById('roomIdInput');
 const messageInput = document.getElementById('messageInput');
@@ -9,6 +8,8 @@ const connectionStatus = document.getElementById('connection-status');
 const chat = document.getElementById('chat');
 const hostBtn = document.getElementById('hostBtn');
 const copyBtn = document.getElementById('copyRoomId');
+const connectBtn = document.getElementById('connectBtn');
+const connectToRoomInput = document.getElementById('connectToRoom');
 
 let roomId = null;
 let peerId = null;
@@ -211,13 +212,25 @@ hostBtn.addEventListener('click', () => {
 });
 
 
-joinBtn.addEventListener('click', () => {
-  if (!roomId) {
-    joinRoom();
-  } else {
-    // Already joined room, maybe alert or ignore
-    alert(`Already joined room: ${roomId}`);
+connectBtn.addEventListener('click', () => {
+  // Grab the room ID from the connect input field
+  const roomToJoin = connectToRoomInput.value.trim();
+  if (!roomToJoin) {
+    alert('Please enter a Room ID to connect to.');
+    return;
   }
+
+  // Set global roomId to this value
+  roomId = roomToJoin;
+
+  // If nickname is empty, alert user
+  nickname = nicknameInput.value.trim();
+  if (!nickname) {
+    alert('Please enter your nickname before connecting.');
+    return;
+  }
+
+  joinRoom();
 });
 
 sendBtn.addEventListener('click', sendMessage);
