@@ -231,11 +231,14 @@ window.addEventListener('DOMContentLoaded', () => {
     logChatMessage('Me', msg, true);
     messageInput.value = '';
 
-    Object.values(peers).forEach(({ peer }) => {
+    Object.entries(peers).forEach(([id, { peer }]) => {
       if (peer.connected) {
         peer.send(msg);
+      } else {
+        console.warn(`Peer ${id} not connected yet`);
       }
     });
+
   });
 
   messageInput.addEventListener('keydown', (e) => {
