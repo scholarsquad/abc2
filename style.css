@@ -1,7 +1,7 @@
 /* Base layout */
 body {
   font-family: Arial, sans-serif;
-  background: #f0f2f5;
+  background: #000;
   margin: 0;
   padding: 20px;
   display: flex;
