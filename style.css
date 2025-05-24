@@ -99,3 +99,17 @@ button:disabled {
   flex-grow: 1;
   margin-right: 10px;
 }
+
+.main-container {
+  display: flex;
+  gap: 20px; /* space between instruction and chat */
+}
+
+.instructions {
+  width: 200px; /* or whatever fits */
+  padding: 10px;
+  border: 1px solid #ccc;
+  background: #f0f0f0;
+  font-size: 14px;
+  line-height: 1.4;
+}
