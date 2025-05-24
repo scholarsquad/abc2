@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Generate a random room id (simple)
   function generateRoomId() {
-    return Math.random().toString(36).substring(2, 10);
+    return 'RoomOne';
   }
 
   // Firebase root ref shortcut

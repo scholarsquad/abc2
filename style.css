@@ -107,8 +107,8 @@ button:disabled {
 
 .instructions {
   width: 200px; /* or whatever fits */
-  padding: 10px;
-  border: 1px solid #ccc;
+  padding: 30px;
+  border: 1px solid #0e0404f6;
   background: #f0f0f0;
   font-size: 14px;
   line-height: 1.4;
