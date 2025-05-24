@@ -111,19 +111,21 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 
     newPeer.on('data', (data) => {
+      const text = data.toString();
       let msgObj = null;
+
       try {
-        msgObj = JSON.parse(data.toString());
-      } catch {
+        msgObj = JSON.parse(text);
+      } catch (e) {
         msgObj = null;
       }
 
       if (msgObj && msgObj.type === 'nickname') {
         peers[otherPeerId].nickname = msgObj.nickname;
         logSystemMessage(`Peer ${otherPeerId} set nickname: ${msgObj.nickname}`);
-      } else if (typeof data === 'string') {
+      } else {
         const senderName = peers[otherPeerId].nickname || otherPeerId;
-        logChatMessage(senderName, data.toString(), false);
+        logChatMessage(senderName, text, false);
       }
     });
 
