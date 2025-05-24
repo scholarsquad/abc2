@@ -19,6 +19,7 @@ const messageInput = document.getElementById('messageInput');
 const sendBtn = document.getElementById('sendBtn');
 const connectionStatus = document.getElementById('connection-status');
 const chat = document.getElementById('chat');
+const hostBtn = document.getElementById('hostBtn');
 
 let roomId = null;
 let peerId = null;
@@ -229,6 +230,13 @@ function sendMessage() {
     }
   });
 }
+
+
+hostBtn.addEventListener('click', () => {
+  const newRoomId = generateId();
+  roomIdInput.value = newRoomId;
+  alert(`Room created! Share this Room ID with others: ${newRoomId}`);
+});
 
 joinBtn.addEventListener('click', () => {
   if (!roomId) {
