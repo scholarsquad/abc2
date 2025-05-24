@@ -10,10 +10,32 @@ document.addEventListener('DOMContentLoaded', () => {
   const sendBtn = document.getElementById('sendBtn');
   const chatDiv = document.getElementById('chat');
   const connectionStatus = document.getElementById('connection-status');
-
+  const hostBtn = document.getElementById('hostBtn');
+  
   let nickname = '';
   let roomId = '';
   let peers = {}; // Keyed by remote peerId
+  
+  function hostRoom() {
+    nickname = nicknameInput.value.trim() || `User${Math.floor(Math.random() * 1000)}`;
+    roomId = roomIdInput.value.trim() || `Room${Math.floor(Math.random() * 10000)}`;
+    roomIdInput.value = roomId;
+    connectToRoomInput.value = roomId;
+
+    logMessage(`Hosting room "${roomId}" as "${nickname}"`, 'system-msg');
+    connectionStatus.textContent = '🟠 Waiting for connections...';
+
+    const signalsRef = dbRoot.child('rooms').child(roomId).child('signals');
+    signalsRef.child(nickname).child('signalsToSend').on('child_added', snap => {
+      const { from, data } = snap.val();
+      if (!peers[from]) {
+        setupPeerConnection(from, false, data);
+      } else {
+        peers[from].signal(data);
+      }
+    });
+  }
+  hostBtn.onclick = hostRoom;
 
   function logMessage(text, className = 'system-msg') {
     const p = document.createElement('p');
