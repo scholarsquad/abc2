@@ -37,6 +37,12 @@ document.addEventListener('DOMContentLoaded', () => {
     roomIdInput.value = roomId;
     logMessage(`Hosting room: ${roomId}`);
 
+    // Destroy old peer if any before starting new
+    if (peer) {
+      peer.destroy();
+      peer = null;
+    }
+
     // Create a new simple-peer as initiator
     peer = new SimplePeer({ initiator: true, trickle: false });
 
@@ -99,6 +105,11 @@ document.addEventListener('DOMContentLoaded', () => {
     roomId = id;
     roomIdInput.value = roomId;
     logMessage(`Joining room: ${roomId}`);
+
+    if (peer) {
+      peer.destroy();
+      peer = null;
+    }
 
     const roomRef = dbRoot.child('rooms').child(roomId);
 
@@ -177,7 +188,15 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   };
 
-  // If roomIdInput is blank, start hosting automatically
+  // ** NEW: Listen for Enter key on roomIdInput to start hosting **
+  roomIdInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      startHosting();
+    }
+  });
+
+  // If roomIdInput is blank on load, start hosting automatically
   if (!roomIdInput.value.trim()) {
     startHosting();
   } else {
