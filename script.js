@@ -188,7 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   };
 
-  // ** NEW: Listen for Enter key on roomIdInput to start hosting **
+  // Listen for Enter key on roomIdInput to start hosting **
   roomIdInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
