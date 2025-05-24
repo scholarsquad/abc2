@@ -5,16 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>P2P Chat with Firebase Signaling</title>
 
-  <!-- Firebase via CDN -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
-
-  <!-- Initialize Firebase here in HTML -->
- 
-
   <style>
-    /* Basic styling for chat */
     body { font-family: Arial, sans-serif; margin: 20px; }
     .chat-container { max-width: 600px; margin: auto; }
     #roomId, #connectToRoom, #messageInput { width: 70%; padding: 8px; margin-right: 10px; }
@@ -27,11 +21,19 @@
   </style>
 </head>
 <body>
+  <div class="main-container">
+  <div class="instructions">
+    <h2>How to use</h2>
+    <p>To create a custom room id, type it in</p>
+    <p>and then hit enter on your keyboard.</p>
+    <p>Share your room ID and have the other person enter it.</p>
+  </div>
+
   <div class="chat-container">
     <div id="connection-status">🔴 Disconnected</div>
 
     <div>
-      <label>Room ID (type your own or leave blank for auto): </label><br />
+      <label>Room ID: </label><br />
       <input type="text" id="roomId" placeholder="Enter Room ID (or leave blank)" />
       <button id="copyRoomId">Copy Room ID</button>
     </div>
@@ -49,6 +51,8 @@
       <button id="sendBtn" disabled>Send</button>
     </div>
   </div>
+</div>
+  
    <script>
   const firebaseConfig = {
     apiKey: "AIzaSyA3goqO3rp5_uXJKV3RNFVkso3W7C-rYTk",
@@ -60,22 +64,16 @@
     appId: "1:77422680773:web:f2437b0a354cc2316f6eac"
   };
 
-  // Initialize Firebase
   firebase.initializeApp(firebaseConfig);
 
-  // ✅ Debug: Check Firebase initialization
   console.log('Firebase initialized:', !!firebase.app());
 
-  // ✅ Optional Debug: Check Database reference
   const db = firebase.database();
   console.log('Database ref (root):', db.ref().toString());
 </script>
 
-
-  <!-- Peer library local -->
   <script src="simplepeer.min.js"></script>
 
-  <!-- Your main JS -->
   <script src="script.js"></script>
 </body>
 </html>
