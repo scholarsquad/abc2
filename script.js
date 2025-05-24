@@ -1,191 +1,188 @@
-// script.js
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('DOM fully loaded and parsed');
 
-// Firebase database reference
-const db = firebase.database();
+  // DOM elements
+  const roomIdInput = document.getElementById('roomId');
+  const connectToRoomInput = document.getElementById('connectToRoom');
+  const connectBtn = document.getElementById('connectBtn');
+  const copyRoomIdBtn = document.getElementById('copyRoomId');
+  const messageInput = document.getElementById('messageInput');
+  const sendBtn = document.getElementById('sendBtn');
+  const chatDiv = document.getElementById('chat');
+  const connectionStatus = document.getElementById('connection-status');
 
-let peer = null;
-let isHost = false;
-let roomId = null;
+  let peer = null;
+  let roomId = '';
 
-// UI elements
-const roomIdInput = document.getElementById('roomId');
-const connectToRoomInput = document.getElementById('connectToRoom');
-const connectBtn = document.getElementById('connectBtn');
-const copyRoomIdBtn = document.getElementById('copyRoomId');
-const chatDiv = document.getElementById('chat');
-const messageInput = document.getElementById('messageInput');
-const sendBtn = document.getElementById('sendBtn');
-const connectionStatus = document.getElementById('connection-status');
+  // Utility: log messages in chat box
+  function logMessage(text, className = 'system-msg') {
+    const p = document.createElement('p');
+    p.textContent = text;
+    p.className = className;
+    chatDiv.appendChild(p);
+    chatDiv.scrollTop = chatDiv.scrollHeight;
+  }
 
-function generateRoomId() {
-  // Simple random 6-digit hex string
-  return Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0');
-}
+  // Generate a random room id (simple)
+  function generateRoomId() {
+    return Math.random().toString(36).substring(2, 10);
+  }
 
-function logSystemMessage(msg) {
-  const p = document.createElement('p');
-  p.className = 'system-msg';
-  p.textContent = msg;
-  chatDiv.appendChild(p);
-  chatDiv.scrollTop = chatDiv.scrollHeight;
-}
+  // Firebase root ref shortcut
+  const dbRoot = firebase.database().ref();
 
-function addMessageToChat(msg, isOwnMessage) {
-  const p = document.createElement('p');
-  p.textContent = msg;
-  p.className = isOwnMessage ? 'your-msg' : 'peer-msg';
-  chatDiv.appendChild(p);
-  chatDiv.scrollTop = chatDiv.scrollHeight;
-}
+  // Start hosting a room
+  function startHosting() {
+    roomId = roomIdInput.value.trim() || generateRoomId();
+    roomIdInput.value = roomId;
+    logMessage(`Hosting room: ${roomId}`);
 
-function updateConnectionStatus(connected) {
-  connectionStatus.textContent = connected ? '🟢 Connected' : '🔴 Disconnected';
-}
+    // Create a new simple-peer as initiator
+    peer = new SimplePeer({ initiator: true, trickle: false });
 
-function enableChat() {
-  messageInput.disabled = false;
-  sendBtn.disabled = false;
-  messageInput.focus();
-}
+    connectionStatus.textContent = '🟠 Hosting - waiting for peer...';
 
-function disableChat() {
-  messageInput.disabled = true;
-  sendBtn.disabled = true;
-}
+    // Firebase signaling path
+    const roomRef = dbRoot.child('rooms').child(roomId);
 
-// Clear Firebase listeners for current room (to avoid duplicate events)
-function clearFirebaseListeners() {
-  if (!roomId) return;
-  db.ref('rooms/' + roomId + '/offer').off();
-  db.ref('rooms/' + roomId + '/answer').off();
-}
+    // Clear old signaling data
+    roomRef.remove().then(() => {
+      console.log('Old signaling data cleared for room:', roomId);
+    });
 
-function startHosting() {
-  clearFirebaseListeners();
-  isHost = true;
-  roomId = roomIdInput.value.trim() || generateRoomId();
-  roomIdInput.value = roomId;
-  logSystemMessage(`Hosting room: ${roomId}`);
-  updateConnectionStatus(false);
+    // When peer has signaling data (offer)
+    peer.on('signal', data => {
+      console.log('Host signaling data:', data);
+      roomRef.child('offer').set(data);
+    });
 
-  peer = new SimplePeer({ initiator: true, trickle: false });
-
-  peer.on('signal', data => {
-    console.log('Host generated signal (offer/candidates):', data);
-    db.ref('rooms/' + roomId + '/offer').set(data);
-  });
-
-  // Listen for answer from joiner
-  db.ref('rooms/' + roomId + '/answer').on('value', snapshot => {
-    const answer = snapshot.val();
-    if (!answer) return;
-    if (peer && !peer.destroyed) {
-      // Only signal if peer state not stable (avoid multiple signaling)
-      if (peer._pc.signalingState !== 'stable') {
-        console.log('Host received answer:', answer);
-        peer.signal(answer);
-      } else {
-        console.log('Host ignoring answer signal because state is stable');
+    // Listen for answer from joiner
+    roomRef.child('answer').on('value', snapshot => {
+      const answer = snapshot.val();
+      if (answer) {
+        console.log('Received answer:', answer);
+        try {
+          peer.signal(answer);
+        } catch (err) {
+          console.error('Error applying answer signal:', err);
+        }
       }
-    }
-  });
+    });
 
-  setupPeerEvents();
-}
+    peer.on('connect', () => {
+      connectionStatus.textContent = '🟢 Connected';
+      logMessage('Peer connected!', 'your-msg');
+      messageInput.disabled = false;
+      sendBtn.disabled = false;
+    });
 
-function joinRoom(id) {
-  clearFirebaseListeners();
-  isHost = false;
-  roomId = id.trim();
-  if (!roomId) {
-    alert('Please enter a valid Room ID to join.');
-    return;
+    peer.on('data', data => {
+      logMessage(`Peer: ${data}`, 'peer-msg');
+    });
+
+    peer.on('error', err => {
+      console.error('Peer error:', err);
+      logMessage(`Peer error: ${err}`, 'system-msg');
+      connectionStatus.textContent = '🔴 Error';
+    });
+
+    peer.on('close', () => {
+      logMessage('Connection closed', 'system-msg');
+      connectionStatus.textContent = '🔴 Disconnected';
+      messageInput.disabled = true;
+      sendBtn.disabled = true;
+    });
   }
-  roomIdInput.value = roomId;
-  logSystemMessage(`Joining room: ${roomId}`);
-  updateConnectionStatus(false);
 
-  peer = new SimplePeer({ initiator: false, trickle: false });
+  // Join a room by ID
+  function joinRoom(id) {
+    roomId = id;
+    roomIdInput.value = roomId;
+    logMessage(`Joining room: ${roomId}`);
 
-  // Listen for offer from host
-  db.ref('rooms/' + roomId + '/offer').on('value', snapshot => {
-    const offer = snapshot.val();
-    if (!offer) return;
-    if (peer && !peer.destroyed) {
-      console.log('Joiner received offer:', offer);
+    const roomRef = dbRoot.child('rooms').child(roomId);
+
+    peer = new SimplePeer({ initiator: false, trickle: false });
+
+    connectionStatus.textContent = '🟠 Joining room...';
+
+    // Listen for offer from host
+    roomRef.child('offer').once('value').then(snapshot => {
+      const offer = snapshot.val();
+      if (!offer) {
+        logMessage('No offer found for this room.', 'system-msg');
+        connectionStatus.textContent = '🔴 No offer found';
+        return;
+      }
+      console.log('Received offer:', offer);
       peer.signal(offer);
+    });
+
+    // When peer has signaling data (answer)
+    peer.on('signal', data => {
+      console.log('Joiner signaling data (answer):', data);
+      roomRef.child('answer').set(data);
+    });
+
+    peer.on('connect', () => {
+      connectionStatus.textContent = '🟢 Connected';
+      logMessage('Peer connected!', 'your-msg');
+      messageInput.disabled = false;
+      sendBtn.disabled = false;
+    });
+
+    peer.on('data', data => {
+      logMessage(`Peer: ${data}`, 'peer-msg');
+    });
+
+    peer.on('error', err => {
+      console.error('Peer error:', err);
+      logMessage(`Peer error: ${err}`, 'system-msg');
+      connectionStatus.textContent = '🔴 Error';
+    });
+
+    peer.on('close', () => {
+      logMessage('Connection closed', 'system-msg');
+      connectionStatus.textContent = '🔴 Disconnected';
+      messageInput.disabled = true;
+      sendBtn.disabled = true;
+    });
+  }
+
+  // Send chat message
+  sendBtn.onclick = () => {
+    const msg = messageInput.value.trim();
+    if (!msg || !peer || peer.destroyed) return;
+    peer.send(msg);
+    logMessage(`You: ${msg}`, 'your-msg');
+    messageInput.value = '';
+  };
+
+  // Connect button click handler
+  connectBtn.onclick = () => {
+    console.log('Connect button clicked');
+    const id = connectToRoomInput.value.trim();
+    if (!id) {
+      alert('Please enter a Room ID to connect.');
+      return;
     }
-  });
+    joinRoom(id);
+  };
 
-  peer.on('signal', data => {
-    console.log('Joiner generated signal (answer/candidates):', data);
-    db.ref('rooms/' + roomId + '/answer').set(data);
-  });
+  // Copy room ID button
+  copyRoomIdBtn.onclick = () => {
+    if (!roomIdInput.value) return alert('No room ID to copy');
+    navigator.clipboard.writeText(roomIdInput.value).then(() => {
+      alert('Room ID copied to clipboard');
+    });
+  };
 
-  setupPeerEvents();
-}
-
-function setupPeerEvents() {
-  peer.on('connect', () => {
-    console.log('Peer connected');
-    logSystemMessage('Peer connected!');
-    updateConnectionStatus(true);
-    enableChat();
-  });
-
-  peer.on('data', data => {
-    console.log('Data received:', data);
-    addMessageToChat(data.toString(), false);
-  });
-
-  peer.on('error', err => {
-    console.error('Peer error:', err);
-    logSystemMessage(`Error: ${err.message || err}`);
-  });
-
-  peer.on('close', () => {
-    console.log('Peer connection closed');
-    logSystemMessage('Peer disconnected');
-    updateConnectionStatus(false);
-    disableChat();
-  });
-}
-
-// Send chat message
-sendBtn.onclick = () => {
-  const msg = messageInput.value.trim();
-  if (!msg || !peer || peer.destroyed) return;
-  peer.send(msg);
-  addMessageToChat(msg, true);
-  messageInput.value = '';
-  messageInput.focus();
-};
-
-// Connect button handler
-connectBtn.onclick = () => {
-  const id = connectToRoomInput.value.trim();
-  if (!id) {
-    alert('Please enter a Room ID to connect.');
-    return;
-  }
-  joinRoom(id);
-};
-
-// Copy room id button handler
-copyRoomIdBtn.onclick = () => {
+  // If roomIdInput is blank, start hosting automatically
   if (!roomIdInput.value.trim()) {
-    alert('No Room ID to copy!');
-    return;
+    startHosting();
+  } else {
+    roomId = roomIdInput.value.trim();
   }
-  navigator.clipboard.writeText(roomIdInput.value.trim())
-    .then(() => alert('Room ID copied to clipboard!'))
-    .catch(() => alert('Failed to copy Room ID.'));
-};
 
-// Auto-start hosting if roomId input is empty
-if (!roomIdInput.value.trim()) {
-  startHosting();
-} else {
-  // If roomId input already has a value, assume user wants to host that room
-  startHosting();
-}
+  console.log('Setup complete');
+});
